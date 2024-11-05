@@ -1,0 +1,59 @@
+# Ask to GPT-4o/perplexity
+- Основная идея - разобраться как обычно такая задача решается (какие программные пакеты используются)
+## Вопросы
+- I would like to create gpt telegram bot what packages I need to use?
+- How to run this telegram bot in production?
+- I would like to create gpt telegram bot and run it in railways what packages I need to use?
+- I would like to create and run in production gpt telegram bot which can work with text, images and voice and supports openai streaming mode, can be added in to telegram groups, supports user id's and can store user message history, what packages I need to use?
+- I would like to create and run in production gpt telegram bot which can work with text, images and voice and supports openai streaming mode, can be added in to telegram groups, supports user id's and can store user message history, what js packages I need to use?
+
+# Composer for planning
+- Основная идея - не использовать внешние системы для подготовки PRD. 
+- Используем новую модель sonnet для планирования. 
+- И стараемся на этапе подготовки получить примеры кода по всем основным компонентам из раздела Core Functionality на этапе планирования, чтобы добавить данные примеры в PRD в раздел Documentation
+- Дополнительно переписыванем PRD при помощи модели o1-preview если требуется. В данном примере не используется, но в более сложных проектах может быть полезно.
+
+## Ask to composer with Anthropic model
+```
+This is the project I would like to build
+How should I structure my project files?
+(try to create as few files as possible)
+```
+## Ask to composer with Anthropic model
+```
+Please provide examples of implementation for all # Core Functionalities
+Do not create actual files, provide only valuable examples
+```
+
+# Composer for project code
+using new `claude-3-5-sonnet-20241022` model
+- Основная идея - создавать функции проекта по шагам, тестируя на каждом этапе как работает GPT telegram bot
+- Переход на следующий шаг возможен только после устранения неполадок на текущем шаге
+
+## Step 1
+read carefully instructions in the file and build step by step
+
+```
+Would you like me to continue with the bot implementation and handlers? I can also provide the implementation for image and voice processing, as well as the settings panels.
+The next steps would be:
+Implement the main bot handlers
+Create settings panels with inline keyboards
+Implement image and voice processing
+Add group chat support
+Create help commands and documentation
+```
+
+## Step 2
+Implement the main bot handlers
+
+```
+Next steps could be:
+Implement image processing handlers
+Implement voice processing handlers
+Add more detailed settings management
+Add group chat specific features
+Implement message history clearing
+```
+
+## Step 3
+далее по шагам имплементируем все что указано выше

@@ -866,7 +866,7 @@ class Bot:
                 "💬 *Работа с текстом:*\n\n"
                 "• Отправьте текстовое сообщение для получения ответа\n"
                 "• Бот поддерживает контекст разговора\n"
-                "• Можно настроить модель, температуру и другие параметры\n"
+                "• Можно настроить модель, температуру и другие пара��етры\n"
                 "• Доступно использование AI Assistant API\n\n"
                 "*Модели:*\n"
                 "• GPT-3.5-Turbo\n"
@@ -972,15 +972,16 @@ class Bot:
                 pattern="^(confirm|cancel)_clear$"
             ))
 
-            # Start the bot
+            # Initialize and start the bot
             self.logger.info("Starting bot polling...")
             await application.initialize()
             await application.start()
+            
+            # Start polling without managing the event loop
+            self.logger.info("Starting polling...")
             await application.updater.start_polling(drop_pending_updates=True)
             
-            # Keep running
-            self.logger.info("Bot is running...")
-            await application.updater.wait_closed()
+            return application  # Return the application for proper cleanup
             
         except Exception as e:
             self.logger.critical(f"Failed to run bot: {str(e)}")

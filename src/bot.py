@@ -937,44 +937,35 @@ class Bot:
     async def run(self):
         """Start the bot"""
         try:
+            self.logger.info("Starting bot...")
             application = Application.builder().token(self.config.TELEGRAM_TOKEN).build()
 
-            # Add help handlers
+            # Add handlers
             application.add_handler(CommandHandler("help", self.help_command))
             application.add_handler(CallbackQueryHandler(
                 self.handle_help_callback,
                 pattern="^help_"
             ))
-            
-            # Add existing handlers
             application.add_handler(CommandHandler("start", self.start_command))
             application.add_handler(CommandHandler("settings", self.settings_command))
             application.add_handler(CallbackQueryHandler(self.handle_settings_callback))
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
-            
-            # Add new image handlers
             application.add_handler(MessageHandler(filters.PHOTO, self.handle_image_message))
             application.add_handler(MessageHandler(
                 filters.Regex(r'^[!/]image\s+.+'), 
                 self.handle_image_generation
             ))
-
-            # Add voice handlers
             application.add_handler(MessageHandler(filters.VOICE, self.handle_voice_message))
             application.add_handler(MessageHandler(
                 filters.Regex(r'^[!/]speak\s+.+'), 
                 self.handle_text_to_speech
             ))
-
-            # Add group chat handlers
             application.add_handler(CommandHandler("groupsettings", self.handle_group_command))
             application.add_handler(CommandHandler("grouphelp", self.handle_group_command))
             application.add_handler(MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS,
                 self.handle_group_message
             ))
-
-            # Add clear history handlers
             application.add_handler(CommandHandler("clear", self.clear_history_command))
             application.add_handler(CallbackQueryHandler(
                 self.handle_clear_history_callback,
@@ -985,9 +976,10 @@ class Bot:
             self.logger.info("Starting bot polling...")
             await application.initialize()
             await application.start()
-            await application.updater.start_polling()
+            await application.updater.start_polling(drop_pending_updates=True)
             
-            # Keep the application running
+            # Keep running
+            self.logger.info("Bot is running...")
             await application.updater.wait_closed()
             
         except Exception as e:

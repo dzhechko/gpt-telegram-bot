@@ -1,16 +1,22 @@
 from typing import Dict, List, Optional
 import json
 from datetime import datetime, timedelta
+from .utils.logger import setup_logger
 
 class MessageHistory:
     def __init__(self, max_messages: int = 10):
+        self.logger = setup_logger('message_history')
         self.history: Dict[int, List[Dict]] = {}
         self.max_messages = max_messages
         self.last_cleared: Dict[int, datetime] = {}  # Track when history was last cleared
+        self.logger.info(f"Message history initialized with max_messages={max_messages}")
 
     def add_message(self, user_id: int, role: str, content: str):
         """Add a message to user's history"""
+        self.logger.debug(f"Adding message for user {user_id}, role: {role}")
+        
         if user_id not in self.history:
+            self.logger.debug(f"Creating new history for user {user_id}")
             self.history[user_id] = []
             
         self.history[user_id].append({
@@ -21,6 +27,7 @@ class MessageHistory:
         
         # Trim history if too long
         if len(self.history[user_id]) > self.max_messages:
+            self.logger.debug(f"Trimming history for user {user_id}")
             self.history[user_id] = self.history[user_id][-self.max_messages:]
 
     def get_history(self, user_id: int) -> List[Dict]:

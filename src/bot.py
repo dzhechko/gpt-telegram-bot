@@ -13,16 +13,26 @@ from .models import OpenAIHandler
 from .services import MessageHistory, AIAssistantService
 import aiohttp
 from io import BytesIO
+from .utils.logger import setup_logger, log_async_error
+import traceback
+import json
 
 class Bot:
     def __init__(self):
-        self.config = Config()
-        self.openai_handler = OpenAIHandler(self.config.OPENAI_API_KEY)
-        self.message_history = MessageHistory()
-        self.ai_assistant = AIAssistantService()
+        self.logger = setup_logger('telegram_bot')
+        self.logger.info("Initializing bot...")
         
-        # Store user settings
-        self.user_settings: Dict[int, Dict[str, ModelSettings]] = {}
+        try:
+            self.config = Config()
+            self.openai_handler = OpenAIHandler(self.config.OPENAI_API_KEY)
+            self.message_history = MessageHistory()
+            self.ai_assistant = AIAssistantService()
+            self.user_settings: Dict[int, Dict[str, ModelSettings]] = {}
+            
+            self.logger.info("Bot initialized successfully")
+        except Exception as e:
+            self.logger.critical(f"Failed to initialize bot: {str(e)}", exc_info=True)
+            raise
 
     def get_user_settings(self, user_id: int) -> Dict[str, ModelSettings]:
         if user_id not in self.user_settings:
@@ -60,37 +70,60 @@ class Bot:
     async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle incoming text messages"""
         user_id = update.effective_user.id
-        user_settings = self.get_user_settings(user_id)
-        text_settings = user_settings["text"]
+        self.logger.debug(f"Handling text message from user {user_id}: {update.message.text[:100]}...")
+        
+        try:
+            user_settings = self.get_user_settings(user_id)
+            text_settings = user_settings["text"]
 
-        # Add user message to history
-        self.message_history.add_message(user_id, "user", update.message.text)
-        messages = self.message_history.get_history(user_id)
+            # Log settings being used
+            self.logger.debug(f"Using settings for user {user_id}: {json.dumps(text_settings.__dict__)}")
 
-        # Send initial response
-        response_message = await update.message.reply_text("...")
-        collected_response = []
+            # Add user message to history
+            self.message_history.add_message(user_id, "user", update.message.text)
+            messages = self.message_history.get_history(user_id)
 
-        # Handle AI Assistant if configured
-        if text_settings.assistant_api_endpoint:
+            # Send initial response
+            response_message = await update.message.reply_text("...")
+            collected_response = []
+
+            # Handle AI Assistant if configured
+            if text_settings.assistant_api_endpoint:
+                self.logger.info(f"Using AI Assistant for user {user_id}")
+                try:
+                    response = await self.ai_assistant.process_message(update.message.text)
+                    await response_message.edit_text(response)
+                    self.message_history.add_message(user_id, "assistant", response)
+                    return
+                except Exception as e:
+                    error_msg = f"AI Assistant error for user {user_id}: {str(e)}"
+                    self.logger.error(error_msg, exc_info=True)
+                    await response_message.edit_text(f"Ошибка AI Assistant: {str(e)}")
+                    return
+
+            # Handle streaming response
+            self.logger.debug(f"Starting streaming response for user {user_id}")
             try:
-                response = await self.ai_assistant.process_message(update.message.text)
-                await response_message.edit_text(response)
-                self.message_history.add_message(user_id, "assistant", response)
-                return
+                async for chunk in self.openai_handler.stream_text_response(messages, text_settings):
+                    collected_response.append(chunk)
+                    if len(collected_response) % 3 == 0:
+                        await response_message.edit_text("".join(collected_response))
             except Exception as e:
-                await response_message.edit_text(f"Ошибка AI Assistant: {str(e)}")
+                error_msg = f"Streaming error for user {user_id}: {str(e)}"
+                self.logger.error(error_msg, exc_info=True)
+                await response_message.edit_text(f"Ошибка при получении ответа: {str(e)}")
                 return
 
-        # Handle streaming response
-        async for chunk in self.openai_handler.stream_text_response(messages, text_settings):
-            collected_response.append(chunk)
-            if len(collected_response) % 3 == 0:  # Update every 3 chunks
-                await response_message.edit_text("".join(collected_response))
-
-        final_response = "".join(collected_response)
-        await response_message.edit_text(final_response)
-        self.message_history.add_message(user_id, "assistant", final_response)
+            final_response = "".join(collected_response)
+            await response_message.edit_text(final_response)
+            self.message_history.add_message(user_id, "assistant", final_response)
+            
+            self.logger.debug(f"Successfully processed message for user {user_id}")
+            
+        except Exception as e:
+            error_msg = f"Unexpected error handling message from user {user_id}: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            await update.message.reply_text("Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.")
 
     async def handle_settings_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced settings callback handler"""
@@ -638,7 +671,7 @@ class Bot:
             "   • /grouphelp - это сообщение\n"
             "   • !image или /image - генерация изображений\n"
             "   • !speak или /speak - преобразование текста в речь\n\n"
-            "Администраторы м��гут настраивать:\n"
+            "Администраторы мгут настраивать:\n"
             "• Режим ответов бота\n"
             "• Права пользователей\n"
             "• Ограничения использования"

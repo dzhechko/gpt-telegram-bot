@@ -1,14 +1,18 @@
 from openai import AsyncOpenAI
 from typing import AsyncGenerator, Optional
 from .config import ModelSettings
+from .utils.logger import setup_logger, log_async_error
 
 class OpenAIHandler:
     def __init__(self, api_key: str):
+        self.logger = setup_logger('openai_handler')
         self.api_key = api_key
         self.clients: dict = {}  # Store clients for different base URLs
+        self.logger.info("OpenAI handler initialized")
 
     def get_client(self, base_url: str) -> AsyncOpenAI:
         if base_url not in self.clients:
+            self.logger.debug(f"Creating new OpenAI client for base URL: {base_url}")
             self.clients[base_url] = AsyncOpenAI(
                 api_key=self.api_key,
                 base_url=base_url
@@ -20,9 +24,14 @@ class OpenAIHandler:
         messages: list, 
         settings: ModelSettings
     ) -> AsyncGenerator[str, None]:
-        client = self.get_client(settings.base_url)
+        self.logger.debug(f"Starting text stream with model {settings.model_name}")
         
         try:
+            client = self.get_client(settings.base_url)
+            
+            self.logger.debug(f"Request params: temperature={settings.temperature}, "
+                            f"max_tokens={settings.max_tokens}")
+            
             stream = await client.chat.completions.create(
                 model=settings.model_name,
                 messages=messages,
@@ -36,6 +45,8 @@ class OpenAIHandler:
                     yield chunk.choices[0].delta.content
                     
         except Exception as e:
+            error_msg = f"Error in stream_text_response: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
             yield f"Ошибка: {str(e)}"
 
     async def generate_image(

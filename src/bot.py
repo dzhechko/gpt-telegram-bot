@@ -985,11 +985,17 @@ class Bot:
             self.logger.info("Starting bot polling...")
             await application.initialize()
             await application.start()
-            await application.run_polling()
+            await application.updater.start_polling()
+            
+            # Keep the application running
+            await application.updater.wait_closed()
+            
         except Exception as e:
             self.logger.critical(f"Failed to run bot: {str(e)}")
             self.logger.critical(traceback.format_exc())
             raise
+        finally:
+            self.logger.info("Bot stopped")
 
 if __name__ == "__main__":
     bot = Bot()

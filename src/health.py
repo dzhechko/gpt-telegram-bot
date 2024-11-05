@@ -1,16 +1,26 @@
 from aiohttp import web
 import logging
+from aiohttp.web_runner import AppRunner, TCPSite
 
-async def health_check(request):
-    return web.Response(text="OK", status=200)
+class HealthCheck:
+    def __init__(self, port: int = 8080):
+        self.port = port
+        self.app = web.Application()
+        self.app.router.add_get('/health', self.health_check)
+        self.runner = None
+        self.site = None
 
-async def setup_health_check(port: int = 8080):
-    app = web.Application()
-    app.router.add_get('/health', health_check)
+    async def health_check(self, request):
+        return web.Response(text="OK", status=200)
+
+    async def start(self):
+        self.runner = AppRunner(self.app)
+        await self.runner.setup()
+        self.site = TCPSite(self.runner, '0.0.0.0', self.port)
+        await self.site.start()
+        logging.info(f"Health check endpoint running on port {self.port}")
+
+    async def stop(self):
+        if self.runner:
+            await self.runner.cleanup()
     
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    
-    logging.info(f"Health check endpoint running on port {port}") 

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+import os
 
 class CustomFormatter(logging.Formatter):
     """Custom formatter with colors for console output"""
@@ -35,42 +36,45 @@ def setup_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
-    # Create logs directory if it doesn't exist
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-
     # Create handlers
     # Console handler with colors
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(CustomFormatter())
-
-    # File handler for all debug logs
-    debug_file_handler = RotatingFileHandler(
-        log_dir / "debug.log",
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
-    )
-    debug_file_handler.setLevel(logging.DEBUG)
-    debug_file_handler.setFormatter(
-        logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    )
-
-    # File handler for errors only
-    error_file_handler = RotatingFileHandler(
-        log_dir / "error.log",
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
-    )
-    error_file_handler.setLevel(logging.ERROR)
-    error_file_handler.setFormatter(
-        logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    )
-
-    # Add handlers to logger
+    
+    # Add console handler
     logger.addHandler(console_handler)
-    logger.addHandler(debug_file_handler)
-    logger.addHandler(error_file_handler)
+
+    # Only add file handlers if not running on Railway
+    if not os.getenv('RAILWAY_ENVIRONMENT'):
+        # Create logs directory if it doesn't exist
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+
+        # File handlers setup...
+        debug_file_handler = RotatingFileHandler(
+            log_dir / "debug.log",
+            maxBytes=10*1024*1024,
+            backupCount=5
+        )
+        debug_file_handler.setLevel(logging.DEBUG)
+        debug_file_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        )
+
+        error_file_handler = RotatingFileHandler(
+            log_dir / "error.log",
+            maxBytes=10*1024*1024,
+            backupCount=5
+        )
+        error_file_handler.setLevel(logging.ERROR)
+        error_file_handler.setFormatter(
+            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        )
+
+        # Add file handlers
+        logger.addHandler(debug_file_handler)
+        logger.addHandler(error_file_handler)
 
     return logger
 

@@ -5,6 +5,7 @@ openai==1.12.0
 
 # HTTP client for async requests
 aiohttp==3.9.3
+async-timeout==4.0.3
 
 # Optional dependencies for better performance
 ujson==5.9.0

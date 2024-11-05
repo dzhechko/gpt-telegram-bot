@@ -1,4 +1,12 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram import (
+    Update, 
+    InlineKeyboardButton, 
+    InlineKeyboardMarkup, 
+    InputMediaPhoto, 
+    CallbackQuery,
+    Chat,
+    ChatMember
+)
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -7,7 +15,7 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Any, Union
 from .config import Config, ModelSettings
 from .models import OpenAIHandler
 from .services import MessageHistory, AIAssistantService
@@ -643,7 +651,7 @@ class Bot:
         
         keyboard = [
             [InlineKeyboardButton(
-                "Режим ответов", 
+                "Режим отетов", 
                 callback_data=f"group_response_mode_{chat_id}"
             )],
             [InlineKeyboardButton(
@@ -926,54 +934,62 @@ class Bot:
         elif query.data == "help_main":
             await self.help_command(update, context)
 
-    def run(self):
+    async def run(self):
         """Start the bot"""
-        application = Application.builder().token(self.config.TELEGRAM_TOKEN).build()
+        try:
+            application = Application.builder().token(self.config.TELEGRAM_TOKEN).build()
 
-        # Add help handlers
-        application.add_handler(CommandHandler("help", self.help_command))
-        application.add_handler(CallbackQueryHandler(
-            self.handle_help_callback,
-            pattern="^help_"
-        ))
-        
-        # Add existing handlers
-        application.add_handler(CommandHandler("start", self.start_command))
-        application.add_handler(CommandHandler("settings", self.settings_command))
-        application.add_handler(CallbackQueryHandler(self.handle_settings_callback))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
-        
-        # Add new image handlers
-        application.add_handler(MessageHandler(filters.PHOTO, self.handle_image_message))
-        application.add_handler(MessageHandler(
-            filters.Regex(r'^[!/]image\s+.+'), 
-            self.handle_image_generation
-        ))
+            # Add help handlers
+            application.add_handler(CommandHandler("help", self.help_command))
+            application.add_handler(CallbackQueryHandler(
+                self.handle_help_callback,
+                pattern="^help_"
+            ))
+            
+            # Add existing handlers
+            application.add_handler(CommandHandler("start", self.start_command))
+            application.add_handler(CommandHandler("settings", self.settings_command))
+            application.add_handler(CallbackQueryHandler(self.handle_settings_callback))
+            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
+            
+            # Add new image handlers
+            application.add_handler(MessageHandler(filters.PHOTO, self.handle_image_message))
+            application.add_handler(MessageHandler(
+                filters.Regex(r'^[!/]image\s+.+'), 
+                self.handle_image_generation
+            ))
 
-        # Add voice handlers
-        application.add_handler(MessageHandler(filters.VOICE, self.handle_voice_message))
-        application.add_handler(MessageHandler(
-            filters.Regex(r'^[!/]speak\s+.+'), 
-            self.handle_text_to_speech
-        ))
+            # Add voice handlers
+            application.add_handler(MessageHandler(filters.VOICE, self.handle_voice_message))
+            application.add_handler(MessageHandler(
+                filters.Regex(r'^[!/]speak\s+.+'), 
+                self.handle_text_to_speech
+            ))
 
-        # Add group chat handlers
-        application.add_handler(CommandHandler("groupsettings", self.handle_group_command))
-        application.add_handler(CommandHandler("grouphelp", self.handle_group_command))
-        application.add_handler(MessageHandler(
-            filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS,
-            self.handle_group_message
-        ))
+            # Add group chat handlers
+            application.add_handler(CommandHandler("groupsettings", self.handle_group_command))
+            application.add_handler(CommandHandler("grouphelp", self.handle_group_command))
+            application.add_handler(MessageHandler(
+                filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS,
+                self.handle_group_message
+            ))
 
-        # Add clear history handlers
-        application.add_handler(CommandHandler("clear", self.clear_history_command))
-        application.add_handler(CallbackQueryHandler(
-            self.handle_clear_history_callback,
-            pattern="^(confirm|cancel)_clear$"
-        ))
+            # Add clear history handlers
+            application.add_handler(CommandHandler("clear", self.clear_history_command))
+            application.add_handler(CallbackQueryHandler(
+                self.handle_clear_history_callback,
+                pattern="^(confirm|cancel)_clear$"
+            ))
 
-        # Start the bot
-        application.run_polling()
+            # Start the bot
+            self.logger.info("Starting bot polling...")
+            await application.initialize()
+            await application.start()
+            await application.run_polling()
+        except Exception as e:
+            self.logger.critical(f"Failed to run bot: {str(e)}")
+            self.logger.critical(traceback.format_exc())
+            raise
 
 if __name__ == "__main__":
     bot = Bot()
